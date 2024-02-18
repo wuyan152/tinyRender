@@ -1,6 +1,6 @@
 SYSCONF_LINK = g++
-CPPFLAGS     =
-LDFLAGS      =
+CPPFLAGS     = -O3 -std=c++11
+LDFLAGS      = -O3
 LIBS         = -lm
 
 DESTDIR = ./
@@ -17,4 +17,5 @@ $(OBJECTS): %.o: %.cpp
 	$(SYSCONF_LINK) -Wall $(CPPFLAGS) -c $(CFLAGS) $< -o $@
 
 clean:
-	-del *.o
+	# windows系统请把rm改成del，反之亦然
+	-rm *.o
