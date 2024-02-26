@@ -17,5 +17,4 @@ $(OBJECTS): %.o: %.cpp
 	$(SYSCONF_LINK) -Wall $(CPPFLAGS) -c $(CFLAGS) $< -o $@
 
 clean:
-	# windows系统请把rm改成del，反之亦然
 	-rm *.o

@@ -1,23 +1,9 @@
 #include <iostream>
-#include <string>
 #include <fstream>
 #include <sstream>
-#include <vector>
 #include "model.h"
 
-void Model::load_texture(std::string filename, const char *suffix, TGAImage &img)
-{
-    std::string texfile(filename);
-    size_t dot = texfile.find_last_of(".");
-    if (dot != std::string::npos)
-    {
-        texfile = texfile.substr(0, dot) + std::string(suffix);
-        std::cerr << "texture file " << texfile << " loading " << (img.read_tga_file(texfile.c_str()) ? "ok" : "failed") << std::endl;
-        img.flip_vertically();
-    }
-}
-
-Model::Model(const char *filename) : verts_(), faces_(), norms_(), uv_()
+Model::Model(const char *filename) : verts_(), faces_(), norms_(), uv_(), diffusemap_(), normalmap_(), specularmap_()
 {
     std::ifstream in;
     in.open(filename, std::ifstream::in);
@@ -69,11 +55,11 @@ Model::Model(const char *filename) : verts_(), faces_(), norms_(), uv_()
     }
     std::cerr << "# v# " << verts_.size() << " f# " << faces_.size() << " vt# " << uv_.size() << " vn# " << norms_.size() << std::endl;
     load_texture(filename, "_diffuse.tga", diffusemap_);
+    load_texture(filename, "_nm.tga", normalmap_);
+    load_texture(filename, "_spec.tga", specularmap_);
 }
 
-Model::~Model()
-{
-}
+Model::~Model() {}
 
 int Model::nverts()
 {
@@ -85,7 +71,6 @@ int Model::nfaces()
     return (int)faces_.size();
 }
 
-/** 为传入的面索引返回面对应的三个顶点的索引*/
 std::vector<int> Model::face(int idx)
 {
     std::vector<int> face;
@@ -99,13 +84,55 @@ Vec3f Model::vert(int i)
     return verts_[i];
 }
 
-TGAColor Model::diffuse(Vec2i uv)
+Vec3f Model::vert(int iface, int nthvert)
 {
-    return diffusemap_.get(uv.x, uv.y);
+    return verts_[faces_[iface][nthvert][0]];
 }
 
-Vec2i Model::uv(int iface, int nvert)
+void Model::load_texture(std::string filename, const char *suffix, TGAImage &img)
 {
-    int idx = faces_[iface][nvert][1];
-    return Vec2i(uv_[idx].x * diffusemap_.get_width(), uv_[idx].y * diffusemap_.get_height());
+    std::string texfile(filename);
+    size_t dot = texfile.find_last_of(".");
+    if (dot != std::string::npos)
+    {
+        texfile = texfile.substr(0, dot) + std::string(suffix);
+        std::cerr << "texture file " << texfile << " loading " << (img.read_tga_file(texfile.c_str()) ? "ok" : "failed") << std::endl;
+        img.flip_vertically();
+    }
+}
+
+// 根据uv读取模型漫反射贴图
+TGAColor Model::diffuse(Vec2f uvf)
+{
+    Vec2i uv(uvf[0] * diffusemap_.get_width(), uvf[1] * diffusemap_.get_height());
+    return diffusemap_.get(uv[0], uv[1]);
+}
+
+// 根据uv读取模型法线贴图（笛卡尔坐标系）
+Vec3f Model::normal(Vec2f uvf)
+{
+    Vec2i uv(uvf[0] * normalmap_.get_width(), uvf[1] * normalmap_.get_height());
+    TGAColor c = normalmap_.get(uv[0], uv[1]);
+    Vec3f res;
+    for (int i = 0; i < 3; i++)
+        res[2 - i] = (float)c[i] / 255.f * 2.f - 1.f;
+    return res;
+}
+
+Vec2f Model::uv(int iface, int nthvert)
+{
+    return uv_[faces_[iface][nthvert][1]];
+}
+
+float Model::specular(Vec2f uvf)
+{
+    Vec2i uv(uvf[0] * specularmap_.get_width(), uvf[1] * specularmap_.get_height());
+    return specularmap_.get(uv[0], uv[1])[0] / 1.f;
+}
+
+// 读模型自己存的法线信息
+Vec3f Model::normal(int iface, int nthvert)
+{
+    int idx = faces_[iface][nthvert][2];
+    return norms_[idx].normalize();
 }
